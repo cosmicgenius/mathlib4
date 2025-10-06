@@ -428,6 +428,16 @@ lemma toENNReal_sub {x y : EReal} (hy : 0 ≤ y) :
       ofReal_sub x (EReal.coe_nonneg.mp hy)]
     simp
 
+lemma sub_coe_ennreal_eq_top_iff {a b : ℝ≥0∞} :
+    (a : EReal) - (b : EReal) = ⊤ ↔ a = ∞ ∧ b ≠ ∞ := by
+  rw [← toENNReal_eq_top_iff, toENNReal_sub (coe_ennreal_nonneg _), toENNReal_coe, toENNReal_coe]
+  exact ENNReal.sub_eq_top_iff
+
+lemma sub_coe_ennreal_eq_bot_iff {a b : ℝ≥0∞} :
+    (a : EReal) - (b : EReal) = ⊥ ↔ b = ∞ := by
+  rw [sub_eq_add_neg, add_eq_bot_iff]
+  simp only [coe_ennreal_ne_bot, neg_eq_bot_iff, coe_ennreal_eq_top_iff, false_or]
+
 lemma add_sub_cancel_right {a : EReal} {b : Real} : a + b - b = a := by
   cases a <;> norm_cast
   exact _root_.add_sub_cancel_right _ _
