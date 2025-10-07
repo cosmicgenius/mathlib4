@@ -490,7 +490,30 @@ theorem donsker_varadhan_variational_formula
     let rn_deriv_zero_set : Set α := { x : α | μ.rnDeriv ν x = 0}
     let f_fixed := f - rn_deriv_zero_set.indicator fun _ => c
 
+    have h_f_fixed_on_rn_deriv_zero_set : ∀ x : rn_deriv_zero_set, f_fixed x = f x - c := by
+      intro x
+      unfold f_fixed
+      simp only [Pi.sub_apply, Subtype.coe_prop, indicator_of_mem]
+
+    have h_fixed_on_comp_rn_deriv_zero_set : ∀ x : (rn_deriv_zero_setᶜ : Set α),
+        f_fixed x = f x := by
+      intro x
+      unfold f_fixed
+      simp only [Pi.sub_apply, sub_eq_self, indicator_apply_eq_zero]
+      intro hx
+      exfalso
+      exact absurd hx x.2
+
     have h_rn_deriv_zero_set_measurable : MeasurableSet rn_deriv_zero_set := by sorry
+
+    have h_rn_deriv_zero_μ_null : μ.real rn_deriv_zero_set = 0 := by
+      rw [measureReal_eq_zero_iff]
+      unfold rn_deriv_zero_set
+      have h_rn_deriv_pos := Measure.rnDeriv_pos hμν
+      rw [ae_iff] at h_rn_deriv_pos
+      convert h_rn_deriv_pos using 2
+      ext x
+      simp only [Set.mem_setOf, not_lt, nonpos_iff_eq_zero]
 
     have h_f_fixed_measurable : Measurable f_fixed := by
       -- rw [Measurable.indicator (measurable_const) h_rn_deriv_zero_set_measurable]
@@ -510,14 +533,13 @@ theorem donsker_varadhan_variational_formula
       (const_indicator_integrable_iff_support_finite rn_deriv_zero_set h_rn_deriv_zero_set_measurable c).mpr
       (measure_lt_top μ rn_deriv_zero_set)
 
-    have : (↑(∫ x, f x - rn_deriv_zero_set.indicator (fun _ ↦ c) x ∂μ) : EReal) =
-        ↑(∫ x, f x ∂ μ) - ↑(μ.real rn_deriv_zero_set * c) := by -- this second guy is 0 btw
-      rw [← EReal.coe_sub]
+    have h_f_fixed_μ_integral : (↑(∫ x, f_fixed x ∂μ) : EReal) = ↑(∫ x, f x ∂ μ) := by
       congr 1
-      rw [integral_sub hfμ_integrable h_indicator_integrable]
-      simp only [_root_.sub_right_inj]
-      rw [integral_indicator h_rn_deriv_zero_set_measurable, setIntegral_const]
-      rfl
+      unfold f_fixed
+      simp_rw [Pi.sub_apply, integral_sub hfμ_integrable h_indicator_integrable,
+        integral_indicator h_rn_deriv_zero_set_measurable, setIntegral_const,
+        h_rn_deriv_zero_μ_null]
+      simp only [smul_eq_mul, zero_mul, sub_zero]
 
     use ⟨f_fixed, ⟨h_f_fixed_measurable, h_f_fixed_exp_ν_integrable⟩⟩
 
@@ -532,15 +554,28 @@ theorem donsker_varadhan_variational_formula
             convert integral_llr_add_sub_measure_univ_nonneg hμν hfμ_integrable using 1
             simp only [measureReal_univ_eq_one, add_sub_cancel_right]
 
+    have : ∫ x, exp (f_fixed x) ∂ν = 1 + exp (-c) * ν.real rn_deriv_zero_set := by
+      simp_rw [← Function.comp_apply (f := exp) (g := f_fixed),
+        ← integral_add_compl h_rn_deriv_zero_set_measurable h_f_fixed_exp_ν_integrable]
+
+      -- have : ∫ x in rn_deriv_zero_set, exp (f_fixed x) ∂μ = ℝ
+
+      -- On rn_deriv_zero_set, f_fixed x = -c
+      have h1 : ∫ x in rn_deriv_zero_set, exp (f_fixed x) ∂ν = exp (-c) * ν.real rn_deriv_zero_set := by
+        sorry
+
+      sorry
+
+
     have h_donsker_varadhan_functional_eq : donskerVaradhanFunctional μ ν
         ⟨f_fixed, ⟨h_f_fixed_measurable, h_f_fixed_exp_ν_integrable⟩⟩ =
         klDiv μ ν - exp (-c) * ν (rn_deriv_zero_set) := by
       unfold donskerVaradhanFunctional
       rw [integralEReal_is_bochner_if_integrable μ f_fixed h_f_fixed_μ_integrable]
       rw [h_kl_div_eq_int_llr]
-      unfold f_fixed
-      simp_rw [Pi.sub_apply]
-      rw [this]
+      rw [h_f_fixed_μ_integral]
+
+
       sorry
 
     sorry
@@ -572,7 +607,7 @@ theorem donsker_varadhan_variational_formula
     --   _ = ↑(∫ x, llr μ ν x ∂μ) - ↑(log (∫ x, exp (f x) ∂ν)) := by
     --     sorry
 
-    apply iSup_eq_top
+    -- apply iSup_eq_top
 
   --   -- by_cases μ ≪ ν ∧ Integrable f μ
   --   -- case pos hkl_finite =>
