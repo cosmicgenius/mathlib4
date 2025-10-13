@@ -6,6 +6,7 @@ Authors: Rémy Degenne
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
 import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
 import Mathlib.Analysis.Convex.Deriv
+import Mathlib.Analysis.Convex.Extrema
 
 /-!
 # The function `x ↦ - x * log x`
@@ -126,6 +127,46 @@ lemma strictConvexOn_mul_log : StrictConvexOn ℝ (Set.Ici (0 : ℝ)) (fun x ↦
 lemma convexOn_mul_log : ConvexOn ℝ (Set.Ici (0 : ℝ)) (fun x ↦ x * log x) :=
   strictConvexOn_mul_log.convexOn
 
+lemma strictAntiOn_mul_log : StrictAntiOn (fun x ↦ x * log x) (Set.Icc 0 (exp (-1))) := by
+  apply strictAntiOn_of_deriv_neg (convex_Icc 0 (exp (-1))) _ _
+  · exact continuous_mul_log.continuousOn
+  · intro x hx
+    rw [interior_Icc] at hx
+    obtain ⟨hx_left, hx_right⟩ := hx
+    rw [deriv_mul_log (ne_of_gt hx_left)]
+    have : log x < log (exp (-1)) := log_lt_log hx_left hx_right
+    rw [log_exp (-1)] at this
+    linarith [this]
+
+lemma strictMonoOn_mul_log : StrictMonoOn (fun x ↦ x * log x) (Set.Ici (exp (-1))) := by
+  apply strictMonoOn_of_deriv_pos (convex_Ici (exp (-1))) _ _
+  · exact continuous_mul_log.continuousOn
+  · intro x hx
+    rw [interior_Ici] at hx
+    rw [deriv_mul_log (ne_of_gt (lt_trans (exp_pos (-1)) hx))]
+    have : log (exp (-1)) < log x := log_lt_log (exp_pos (-1)) hx
+    rw [log_exp (-1)] at this
+    linarith [this]
+
+lemma isMinOn_mul_log : IsMinOn (fun x ↦ x * log x) (Set.Ici (0 : ℝ)) (Real.exp (-1)) := by
+  rw [isMinOn_iff]
+  intro x hx
+  by_cases hx_vs_opt : x < Real.exp (-1)
+  · refine strictAntiOn_mul_log.antitoneOn ?_ ?_ ?_
+    · constructor
+      · exact hx
+      · linarith
+    · constructor
+      · exact exp_nonneg (-1)
+      · rfl
+    exact le_of_lt hx_vs_opt
+  · refine strictMonoOn_mul_log.monotoneOn ?_ ?_ ?_
+    · exact le_refl (exp (-1))
+    · push_neg at hx_vs_opt
+      exact hx_vs_opt
+    · push_neg at hx_vs_opt
+      exact hx_vs_opt
+
 lemma mul_log_nonneg {x : ℝ} (hx : 1 ≤ x) : 0 ≤ x * log x :=
   mul_nonneg (zero_le_one.trans hx) (log_nonneg hx)
 
@@ -200,6 +241,15 @@ lemma strictConcaveOn_negMulLog : StrictConcaveOn ℝ (Set.Ici (0 : ℝ)) negMul
 
 lemma concaveOn_negMulLog : ConcaveOn ℝ (Set.Ici (0 : ℝ)) negMulLog :=
   strictConcaveOn_negMulLog.concaveOn
+
+lemma striciMonoOn_negMulLog : StrictMonoOn negMulLog (Set.Icc 0 (exp (-1))) := by
+  simpa only [negMulLog_eq_neg] using strictAntiOn_mul_log.neg
+
+lemma strictAntiOn_negMulLog : StrictAntiOn negMulLog (Set.Ici (exp (-1))) := by
+  simpa only [negMulLog_eq_neg] using strictMonoOn_mul_log.neg
+
+lemma isMaxOn_negMulLog : IsMaxOn negMulLog (Set.Ici (0 : ℝ)) (Real.exp (-1)) := by
+  simpa only [negMulLog_eq_neg] using isMinOn_mul_log.neg
 
 end negMulLog
 

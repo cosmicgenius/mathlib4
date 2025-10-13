@@ -18,6 +18,7 @@ namespace InformationTheory
 
 variable {α : Type*} {mα : MeasurableSpace α} {μ ν : Measure α}
 
+-- Stupid coe lemma that I use multiple times but I thought was nontrivial
 lemma finite_ennreal_coe_real_coe_ereal_eq_coe_ereal
   (x : ENNReal) (hx : x < ∞) : (x.toReal : EReal) = (x : EReal) := by
   calc
@@ -39,30 +40,38 @@ Note that ⊤ - ⊤ = ⊥, so an undefined integral is set to ⊥.
 noncomputable def integralEReal (μ : Measure α) (f : α → ℝ) : EReal :=
   lintegralPosPart μ f - lintegralNegPart μ f
 
+/--
+If f is integrable, then its extended real valued integral is the same as the Bochner integral.
+-/
 lemma integralEReal_is_bochner_if_integrable (μ : Measure α) (f : α → ℝ) (hf : Integrable f μ) :
-  integralEReal μ f = (∫ x, f x ∂μ).toEReal := by
-    rw [integral_eq_lintegral_pos_part_sub_lintegral_neg_part hf]
-    unfold integralEReal
-    simp only [EReal.coe_sub]
+    integralEReal μ f = (∫ x, f x ∂μ).toEReal := by
+  rw [integral_eq_lintegral_pos_part_sub_lintegral_neg_part hf]
+  unfold integralEReal
+  simp only [EReal.coe_sub]
 
-    have hpos_finite : ∫⁻ (x : α), ENNReal.ofReal (f x) ∂μ < ∞ := by
-      apply lt_of_le_of_lt _ hf.hasFiniteIntegral
-      apply lintegral_mono
-      intro x
-      exact ofReal_le_enorm (f x)
+  have hpos_finite : ∫⁻ (x : α), ENNReal.ofReal (f x) ∂μ < ∞ := by
+    apply lt_of_le_of_lt _ hf.hasFiniteIntegral
+    apply lintegral_mono
+    intro x
+    exact ofReal_le_enorm (f x)
 
-    have hneg_finite : ∫⁻ (x : α), ENNReal.ofReal (-f x) ∂μ < ∞ := by
-      apply lt_of_le_of_lt _ hf.hasFiniteIntegral
-      apply lintegral_mono
-      intro x
-      simp
-      rw [← enorm_neg]
-      exact ofReal_le_enorm (-f x)
+  have hneg_finite : ∫⁻ (x : α), ENNReal.ofReal (-f x) ∂μ < ∞ := by
+    apply lt_of_le_of_lt _ hf.hasFiniteIntegral
+    apply lintegral_mono
+    intro x
+    simp
+    rw [← enorm_neg]
+    exact ofReal_le_enorm (-f x)
 
-    rw [finite_ennreal_coe_real_coe_ereal_eq_coe_ereal _ hpos_finite,
-        finite_ennreal_coe_real_coe_ereal_eq_coe_ereal _ hneg_finite]
-    rfl
+  rw [finite_ennreal_coe_real_coe_ereal_eq_coe_ereal _ hpos_finite,
+      finite_ennreal_coe_real_coe_ereal_eq_coe_ereal _ hneg_finite]
+  rfl
 
+/--
+A function f is integrable iff the lower Lebesgue integrals of the positive and negative parts
+are both finite. This is because the L1 norm of f is just the sum of the aforementioned
+lower Lebesgue integrals.
+-/
 lemma integral_pos_neg_ennreal_finite_iff_integrable (μ : Measure α) (f : α → ℝ)
   (hf : Measurable f) :
     lintegralPosPart μ f < ∞ ∧ lintegralNegPart μ f < ∞ ↔ Integrable f μ := by
@@ -94,6 +103,9 @@ lemma integral_pos_neg_ennreal_finite_iff_integrable (μ : Measure α) (f : α �
   rw [← h_pos_plus_neg_eq_norm]
   exact add_lt_top.symm
 
+/--
+The above implies that f is integrable iff its extended real valued integral is finite.
+-/
 lemma integralEReal_is_finite_iff_integrable (μ : Measure α) (f : α → ℝ) (hf : Measurable f) :
     integralEReal μ f < ⊤ ∧ integralEReal μ f > ⊥ ↔ Integrable f μ := by
   unfold integralEReal
@@ -105,77 +117,43 @@ lemma integralEReal_is_finite_iff_integrable (μ : Measure α) (f : α → ℝ) 
 def expIntegrableRealFunctions (ν : Measure α) : Set (α → ℝ) :=
   { f | Measurable f ∧ Integrable (exp ∘ f) ν }
 
--- lemma donsker_varadhan_key_lemma [IsProbabilityMeasure μ] [IsProbabilityMeasure ν]
---   (hμν : μ ≪ ν) (hllr_μν_integrable : Integrable (llr μ ν) μ)
---   (f : α → ℝ) (hf_measurable : Measurable f) (hf_exp_integrable : Integrable (exp ∘ f) ν) :
---     (Integrable (llr μ (ν.tilted f)) μ) →
---     (klDiv μ ν).toReal - (klDiv μ (ν.tilted f)).toReal = ∫ x, f x ∂μ -
---   log (∫ x, exp (f x) ∂ν) := by
---   let νf := ν.tilted f
-
---   have htilted_absCont : νf ≪ ν := tilted_absolutelyContinuous ν f
---   have habsCont_tilted : ν ≪ νf := absolutelyContinuous_tilted hf_exp_integrable
-
---   have hνf_prob : IsProbabilityMeasure νf := isProbabilityMeasure_tilted hf_exp_integrable
-
---   have hμ_νf_absCont : μ ≪ νf := Measure.AbsolutelyContinuous.trans hμν habsCont_tilted
-
---   have h_rnDeriv_mul : ∀ᵐ x ∂μ, μ.rnDeriv ν x = μ.rnDeriv νf x * νf.rnDeriv ν x :=
---     (Measure.AbsolutelyContinuous.ae_eq hμν (Measure.rnDeriv_mul_rnDeriv hμ_νf_absCont)).symm
-
---   have h_llr_sub : ∀ᵐ x ∂μ, llr μ ν x - llr μ νf x = llr νf ν x := by
---     unfold llr
---     rw [← ENNReal.toReal_sub_of_le, hx, ENNReal.toReal_mul, Real.log_mul]
-
---   intro hllr_μνf_integrable
---   calc
---     (klDiv μ ν).toReal - (klDiv μ νf).toReal
---       = ∫ x, llr μ ν x ∂μ - ∫ x, llr μ νf x ∂μ := by
---         rw [toReal_klDiv hμν hllr_μν_integrable, toReal_klDiv hμ_νf_absCont hllr_μνf_integrable]
---         rw [measureReal_univ_eq_one (μ := ν), measureReal_univ_eq_one (μ := νf)]
---         ring
---     _ = ∫ x, llr μ ν x - llr μ νf x ∂μ := by
---         rw [integral_sub hllr_μν_integrable hllr_μνf_integrable]
---     _ = ∫ x, llr νf ν x ∂μ := by
-
---     _ = ∫ x, f x ∂μ - log (∫ x, exp (f x) ∂ν) := by
---         sorry
-
-/-- The integral of the negative part of the log-likelihood ratio `llr μ ν` with respect to
-`μ` is always finite, and bounded by `1/e`. This is the key insight to show that the
-KL-divergence is always well-defined (either a non-negative real or `+∞`). -/
-lemma lintegral_neg_part_llr_le_one_div_e [IsFiniteMeasure μ] [IsFiniteMeasure ν] (h_ac : μ ≪ ν) :
+/--
+The integral of the negative part of the log-likelihood ratio `llr μ ν` with respect to
+`μ` is always finite, and bounded by `1/e`. Importantly, it is finite
+(`lintegral_neg_part_llr_lt_top`), so the extended real valued integral of the log-likelihood ratio
+is nonnegative even in the extended reals.
+-/
+lemma lintegral_neg_part_llr_le_one_div_e [IsFiniteMeasure μ] [IsFiniteMeasure ν] (hμν : μ ≪ ν) :
     lintegralNegPart μ (llr μ ν) ≤ ENNReal.ofReal (exp (-1)) * ν Set.univ := by
+
+  have h_pointwise_bound : ∀ᵐ x ∂ν, μ.rnDeriv ν x * ENNReal.ofReal (-llr μ ν x) ≤
+      ENNReal.ofReal (exp (-1)) := by
+    filter_upwards [Measure.rnDeriv_lt_top μ ν] with x hx
+    let d := μ.rnDeriv ν x
+    calc
+      μ.rnDeriv ν x * ENNReal.ofReal (-llr μ ν x)
+      _ = d * ENNReal.ofReal (-log d.toReal) := by rfl
+      _ = ENNReal.ofReal (d.toReal * -log d.toReal) := by
+            convert (ofReal_mul toReal_nonneg).symm
+            exact (ofReal_toReal_eq_iff.mpr (lt_top_iff_ne_top.mp hx)).symm
+      _ ≤ ENNReal.ofReal (exp (-1)) := by
+            gcongr 1
+            convert isMaxOn_iff.mp Real.isMaxOn_negMulLog d.toReal toReal_nonneg using 1
+            · unfold negMulLog
+              simp only [mul_neg, neg_mul]
+            · unfold negMulLog
+              simp only [log_exp, mul_neg, mul_one, neg_neg]
+
   calc
     lintegralNegPart μ (llr μ ν)
-      = ∫⁻ x, ENNReal.ofReal (-log (μ.rnDeriv ν x).toReal) ∂μ := by rfl
-    _ ≤ ENNReal.ofReal (exp (-1)) * ν Set.univ := by sorry
+      = ∫⁻ x, ENNReal.ofReal (-llr μ ν x) ∂μ := by rfl
+    _ = ∫⁻ x, μ.rnDeriv ν x * ENNReal.ofReal (-llr μ ν x) ∂ν := by
+          refine (lintegral_rnDeriv_mul hμν ?_).symm
+          apply Measurable.aemeasurable
+          exact (MeasureTheory.measurable_llr μ ν).neg.ennreal_ofReal
+    _ ≤ ∫⁻ x, ENNReal.ofReal (exp (-1)) ∂ν := lintegral_mono_ae h_pointwise_bound
+    _ = ENNReal.ofReal (exp (-1)) * ν Set.univ := lintegral_const _
 
-  -- unverified from gemini
-  -- let f x := llr μ ν x
-  -- let g x := (μ.rnDeriv ν x).toReal
-  -- have hg : ∀ x, f x = Real.log (g x) := fun x  => by rfl
-  -- -- Change of measure from μ to ν
-  -- rw [lintegral_congr_ae (llr_ae_eq_log_rnDeriv h_ac),
-  --     lintegral_mul_rnDeriv_eq_lintegral μ h_ac]
-  -- let integrand ν x := ENNReal.ofReal (negPart (Real.log (g x))) * (μ.rnDeriv ν x)
-  -- apply lintegral_le_of_le_ae
-  -- -- We show the integrand is bounded pointwise by 1/e
-  -- filter_upwards [h_ac.ae_le (μ.rnDeriv ν).prop] with x hx
-  -- -- The integrand involves negPart, which is max(0, -f). It's non-zero only if f < 0.
-  -- by_cases hf_neg : Real.log (g x) < 0
-  -- · have hg_pos : 0 < g x := Real.log_pos_iff.mp (by linarith)
-  --   simp only [integrand, negPart_of_neg hf_neg, hg, mul_eq_mul_left_iff, ofReal_eq_zero,
-  --     ofReal_mul, Real.toNNReal_of_nonneg (le_of_lt hg_pos)]
-  --   rw [ENNReal.ofReal_toReal (μ.rnDeriv ν x)]
-  --   apply ENNReal.ofReal_le_ofReal
-  --   -- This is the crucial mathematical inequality: -y * log y ≤ 1/e for y ∈ (0, 1)
-  --   convert Real.neg_mul_log_le_one_div_e (g x)
-  --   rw [neg_mul, mul_comm]
-  -- · simp only [integrand, negPart_of_nonneg (not_lt.mp hf_neg), ofReal_zero, zero_mul]
-  --   exact zero_le _
-
-/-- The `lintegral` of the negative part of `llr μ ν` w.r.t. `μ` is finite. -/
 lemma lintegral_neg_part_llr_lt_top [IsFiniteMeasure μ] [IsFiniteMeasure ν] (h_ac : μ ≪ ν) :
     lintegralNegPart μ (llr μ ν) < ∞ := by
   have := lintegral_neg_part_llr_le_one_div_e h_ac
@@ -206,11 +184,11 @@ lemma integralEReal_llr_eq_ite [IsFiniteMeasure μ] [IsFiniteMeasure ν] (h_ac :
     rw [EReal.sub_coe_ennreal_eq_top_iff]
     exact ⟨h_integrable, lt_top_iff_ne_top.mp lintegral_neg_part_llr_finite⟩
 
-lemma const_indicator_integrable_iff_support_finite (S : Set α) (hS : MeasurableSet S) (c : ℝ) :
-    Integrable (S.indicator fun _ => c) μ ↔ μ S < ∞ := by
-  sorry
-
-
+-- Another dumb lemma
+lemma const_indicator_integrable_if_support_finite (S : Set α) (hS_measurable : MeasurableSet S)
+  (hS_finite : μ S < ∞) (c : ℝ) : Integrable (S.indicator fun _ => c) μ := by
+  rw [integrable_indicator_iff hS_measurable, integrableOn_const_iff]
+  right; exact hS_finite
 
 noncomputable def donskerVaradhanFunctional
   (μ : Measure α) (ν : Measure α) [IsProbabilityMeasure μ] [IsProbabilityMeasure ν]
@@ -259,20 +237,8 @@ lemma donsker_varadhan_not_absCont_infinite_sup [IsProbabilityMeasure μ] [IsPro
 
   have hf_nonneg : b.toReal / c ≥ 0 := div_nonneg toReal_nonneg (le_of_lt hc)
 
-  have hf_μ_integrable : Integrable f μ :=
-    (const_indicator_integrable_iff_support_finite t ht_measurable (b.toReal / c)).mpr
-    (measure_lt_top μ t)
-    -- rw [← memLp_one_iff_integrable]
-    -- apply memLp_of_bounded (a := 0) (b := b.toReal / c)
-    -- · filter_upwards
-    --   intro x
-    --   simp only [f]
-    --   by_cases hxt : x ∈ t
-    --   · simp [hxt]
-    --     exact div_nonneg toReal_nonneg (le_of_lt hc)
-    --   · simp [hxt]
-    --     exact div_nonneg toReal_nonneg (le_of_lt hc)
-    -- · exact hf_measurable.aestronglyMeasurable
+  have hf_μ_integrable : Integrable f μ := const_indicator_integrable_if_support_finite
+    t ht_measurable (measure_lt_top μ t) (b.toReal / c)
 
   unfold donskerVaradhanFunctional
   rw [integralEReal_is_bochner_if_integrable μ f hf_μ_integrable]
@@ -328,14 +294,30 @@ theorem donsker_varadhan_variational_formula
     rw [klDiv_of_not_ac hμν, hsup_infinite]
     exact EReal.coe_ennreal_top
 
-  -- Let f be the llr between μ and ν.
+  -- Let f be the llr between μ and ν. We'll try to plug f into the functional.
   let f := llr μ ν
+
   have hf_exp_ν_integrable : Integrable (exp ∘ f) ν := by
-    -- exp ∘ f = μ.rnDeriv ν, so should follow from hμν : μ ≪ ν
-    sorry
+    refine Integrable.congr ?_ (exp_llr μ ν).symm
+    -- Dumb approach. Just bound by 1 + dμ / dν.
+    refine Integrable.mono (g := fun x ↦ 1 + (μ.rnDeriv ν x).toReal) ?_ ?_ ?_
+    · exact Integrable.add (integrable_const 1) (Measure.integrable_toReal_rnDeriv)
+    · apply Measurable.aestronglyMeasurable
+      have := Measure.measurable_rnDeriv μ ν
+      exact Measurable.ite (measurableSet_eq_fun' this measurable_const) measurable_const
+        this.ennreal_toReal
+    · filter_upwards
+      intro x
+      by_cases h : μ.rnDeriv ν x = 0
+      · simp only [h, ↓reduceIte, one_mem, CStarRing.norm_of_mem_unitary, toReal_zero, add_zero,
+        le_refl]
+      · simp only [h, ↓reduceIte, norm_eq_abs]
+        have : 0 ≤ (μ.rnDeriv ν x).toReal := ENNReal.toReal_nonneg
+        linarith [abs_of_nonneg this, abs_of_nonneg (by linarith : 0 ≤ 1 + (μ.rnDeriv ν x).toReal)]
 
   have h_f_measurable := measurable_llr μ ν
-  let f_ν_exp_integrable : expIntegrableRealFunctions ν := ⟨f, ⟨h_f_measurable, hf_exp_ν_integrable⟩⟩
+  let f_ν_exp_integrable : expIntegrableRealFunctions ν :=
+    ⟨f, ⟨h_f_measurable, hf_exp_ν_integrable⟩⟩
 
   -- If the llr f is not integrable wrt μ, then by definition, the KL divergence is ∞.
   -- In addition, plugging in f to the supremum gives ∞.
@@ -399,7 +381,7 @@ theorem donsker_varadhan_variational_formula
                 gcongr
                 exact ofReal_add_le
 
-      -- Each term's integral is finite.
+      -- h_g_decomp_pos decompses the intgeral into 3 terms. Each term's integral is finite.
       have h1_finite : ∫⁻ (x : α), ENNReal.ofReal (llr μ ν x) ∂μ < ∞ :=
         ((integral_pos_neg_ennreal_finite_iff_integrable μ f h_f_measurable).mpr
           hfμ_integrable).1
@@ -440,17 +422,6 @@ theorem donsker_varadhan_variational_formula
         (integralEReal_is_finite_iff_integrable μ g hg_measurable).mp h_gμ_integral_finite
 
       rw [← h_integral_μg_val]
-    -- by_cases hgμ_integrable : Integrable g μ; swap;
-    -- . have hgμ_ereal_integral_is_bot : integralEReal μ g = ⊥ := by
-    --     rw [← not_bot_lt_iff]
-    --     have hgμ_ereal_integral_infinite :=
-    --       mt (integralEReal_isFinite_iff_integrable μ g).mp hgμ_integrable
-    --     rw [And.comm] at hgμ_ereal_integral_infinite
-    --     apply not_and'.mp hgμ_ereal_integral_infinite
-    --     exact hgμ_ereal_integral_not_top
-
-    --   rw [hgμ_ereal_integral_is_bot]
-    --   simp only [EReal.bot_sub, bot_le]
 
       -- Main computation. We can write the Donsker Varadhan functional as a difference
       -- klDiv μ ν - kl μ (v.tilted g) which is ≤ klDiv μ ν by nonnegativity.
@@ -472,28 +443,48 @@ theorem donsker_varadhan_variational_formula
             rw [← EReal.coe_add, ← EReal.coe_sub, klDiv_of_ac_of_integrable hμν hfμ_integrable,
               EReal.coe_ennreal_ofReal, EReal.coe_eq_coe_iff, left_eq_sup]
             exact integral_llr_add_sub_measure_univ_nonneg hμν hfμ_integrable
+
   · -- To show ≤, we claim for the same f = llr μ ν,
     -- donskerVaradhanFunctional μ ν f = the KL divergence.
-    -- Annoying detail here, we need to modify f to be arbitrarily small on the set
+    -- The is an annoying detail here though. We need to modify f to be arbitrarily small on the set
     -- where dμ / dν = 0 since f is currently not (log 0 = 0, not -∞).
 
-    intro w hw
+    intro w h_w_lt_kl
 
-    by_cases h_w_bot : w > ⊥
-    swap; sorry
+    let wReal := w.toReal
+    let klReal := ∫ x, f x ∂μ
 
-    let ε := (↑(klDiv μ ν) - w).toReal / 2
-    have hε : w + ε < klDiv μ ν ∧ ε > 0 := by
+    let ε := (klReal - wReal) / 2
+    have hε : ε > 0 := by
+      unfold ε
+      simp only [gt_iff_lt, Nat.ofNat_pos, div_pos_iff_of_pos_right, sub_pos]
+      unfold wReal klReal
       sorry
 
-    let c := 1 / ε
+    have h_klReal : (klReal : EReal) = ↑(klDiv μ ν) := by
+      calc
+        (klReal : EReal)
+          = (ENNReal.ofReal klReal : EReal) := by
+            simp only [EReal.coe_ennreal_ofReal, EReal.coe_eq_coe_iff, left_eq_sup]
+            convert integral_llr_add_sub_measure_univ_nonneg hμν hfμ_integrable using 1
+            simp only [measureReal_univ_eq_one, add_sub_cancel_right]
+            rfl
+        _ = ↑(klDiv μ ν) := by
+            rw [klDiv_of_ac_of_integrable hμν hfμ_integrable]
+            simp only [measureReal_univ_eq_one, add_sub_cancel_right]
+            rfl
+
     let rn_deriv_zero_set : Set α := { x : α | μ.rnDeriv ν x = 0}
+    let c := log (ν.real rn_deriv_zero_set) - log ε
     let f_fixed := f - rn_deriv_zero_set.indicator fun _ => c
 
-    have h_f_fixed_on_rn_deriv_zero_set : ∀ x : rn_deriv_zero_set, f_fixed x = f x - c := by
-      intro x
-      unfold f_fixed
-      simp only [Pi.sub_apply, Subtype.coe_prop, indicator_of_mem]
+    have h_f_fixed_on_rn_deriv_zero_set : ∀ x : rn_deriv_zero_set, f_fixed x = - c := by
+      intro ⟨x, hx⟩
+      unfold f_fixed f llr
+      simp only [Pi.sub_apply, hx, indicator_of_mem, sub_eq_neg_self, log_eq_zero]
+      rw [hx]
+      left
+      exact toReal_zero
 
     have h_fixed_on_comp_rn_deriv_zero_set : ∀ x : (rn_deriv_zero_setᶜ : Set α),
         f_fixed x = f x := by
@@ -504,176 +495,166 @@ theorem donsker_varadhan_variational_formula
       exfalso
       exact absurd hx x.2
 
-    have h_rn_deriv_zero_set_measurable : MeasurableSet rn_deriv_zero_set := by sorry
+    have h_rn_deriv_zero_set_measurable : MeasurableSet rn_deriv_zero_set :=
+      measurableSet_eq_fun' (Measure.measurable_rnDeriv μ ν) measurable_const
 
-    have h_rn_deriv_zero_μ_null : μ.real rn_deriv_zero_set = 0 := by
-      rw [measureReal_eq_zero_iff]
+    have h_f_fixed_measurable : Measurable f_fixed := Measurable.sub_stronglyMeasurable
+      h_f_measurable (StronglyMeasurable.indicator stronglyMeasurable_const
+      h_rn_deriv_zero_set_measurable)
+
+    have h_rn_deriv_zero_set_μ_null : μ rn_deriv_zero_set = 0 := by
       unfold rn_deriv_zero_set
       have h_rn_deriv_pos := Measure.rnDeriv_pos hμν
       rw [ae_iff] at h_rn_deriv_pos
       convert h_rn_deriv_pos using 2
       ext x
-      simp only [Set.mem_setOf, not_lt, nonpos_iff_eq_zero]
-
-    have h_f_fixed_measurable : Measurable f_fixed := by
-      -- rw [Measurable.indicator (measurable_const) h_rn_deriv_zero_set_measurable]
-      sorry
-
-    have h_f_fixed_exp_ν_integrable : Integrable (exp ∘ f_fixed) ν := by
-      -- Integrable.congr (integrable_const 1) hf_exp_one_ν_ae.symm
-      sorry
+      simp only [mem_setOf_eq, not_lt, nonpos_iff_eq_zero]
 
     have h_f_fixed_eq_f_ae_μ : f_fixed =ᵐ[μ] f := by
-      sorry
+      filter_upwards [measure_eq_zero_iff_ae_notMem.mp h_rn_deriv_zero_set_μ_null] with x hx
+      simp only [Pi.sub_apply, Set.indicator_of_notMem hx, sub_zero, f_fixed]
 
     have h_f_fixed_μ_integrable : Integrable f_fixed μ :=
       (integrable_congr (id (Filter.EventuallyEq.symm h_f_fixed_eq_f_ae_μ))).mp hfμ_integrable
 
     have h_indicator_integrable : Integrable (rn_deriv_zero_set.indicator (fun _ ↦ c)) μ :=
-      (const_indicator_integrable_iff_support_finite rn_deriv_zero_set h_rn_deriv_zero_set_measurable c).mpr
-      (measure_lt_top μ rn_deriv_zero_set)
+      const_indicator_integrable_if_support_finite rn_deriv_zero_set
+        h_rn_deriv_zero_set_measurable (measure_lt_top μ rn_deriv_zero_set) c
 
     have h_f_fixed_μ_integral : (↑(∫ x, f_fixed x ∂μ) : EReal) = ↑(∫ x, f x ∂ μ) := by
       congr 1
-      unfold f_fixed
-      simp_rw [Pi.sub_apply, integral_sub hfμ_integrable h_indicator_integrable,
-        integral_indicator h_rn_deriv_zero_set_measurable, setIntegral_const,
-        h_rn_deriv_zero_μ_null]
-      simp only [smul_eq_mul, zero_mul, sub_zero]
+      exact integral_congr_ae h_f_fixed_eq_f_ae_μ
+
+    -- On rn_deriv_zero_set, plug in f_fixed x = -c
+    have h_integral_f_fixed_on_rn_deriv_zero_set : ∫ x in rn_deriv_zero_set, exp (f_fixed x) ∂ν
+        = ν.real rn_deriv_zero_set * exp (-c) := by
+      have : ∀ x : α, x ∈ rn_deriv_zero_set → exp (f_fixed x) = exp (-c) := by
+        intro x hx
+        congr
+        exact h_f_fixed_on_rn_deriv_zero_set ⟨x, hx⟩
+
+      rw [setIntegral_congr_fun h_rn_deriv_zero_set_measurable this]
+      simp only [integral_const, MeasurableSet.univ, measureReal_restrict_apply, univ_inter,
+        smul_eq_mul]
+
+    -- On rn_deriv_zero_setᶜ, plug in f_fixed x = f x.
+    have h_integral_f_fixed_on_rn_deriv_zero_set_compl :
+        ∫ x in rn_deriv_zero_setᶜ, exp (f_fixed x) ∂ν = 1 := by
+      have : ∀ᵐ x ∂ν, x ∈ rn_deriv_zero_setᶜ → exp (f_fixed x) = (μ.rnDeriv ν x).toReal := by
+        filter_upwards [exp_llr μ ν] with x h_exp_llr hx
+        unfold rn_deriv_zero_set at hx
+        have hx' : μ.rnDeriv ν x ≠ 0 := hx
+        rw [if_neg hx'] at h_exp_llr
+        rw [h_fixed_on_comp_rn_deriv_zero_set ⟨x, hx⟩]
+        exact h_exp_llr
+
+      rw [setIntegral_congr_ae h_rn_deriv_zero_set_measurable.compl this,
+        Measure.setIntegral_toReal_rnDeriv hμν]
+      unfold Measure.real
+      rw [toReal_eq_one_iff, MeasureTheory.measure_compl h_rn_deriv_zero_set_measurable,
+        measure_univ, h_rn_deriv_zero_set_μ_null]
+      · simp only [tsub_zero]
+      · rw [h_rn_deriv_zero_set_μ_null]
+        exact zero_ne_top
+
+    have h_f_fixed_exp_ν_integrable : Integrable (exp ∘ f_fixed) ν := by
+      by_cases h_rn_deriv_zero_set_ν_measure : ν rn_deriv_zero_set = 0
+      · have h_integrand_ae_eq : ∀ᵐ x ∂ν, (exp ∘ f) x = (exp ∘ f_fixed) x := by
+          unfold f_fixed
+          by_cases hc : c = 0
+          · filter_upwards
+            intro x
+            simp only [Function.comp_apply, hc, indicator_zero, Pi.sub_apply, sub_zero]
+          · rw [ae_iff]
+            convert h_rn_deriv_zero_set_ν_measure using 2
+            ext x
+            simp only [Function.comp_apply, Pi.sub_apply, exp_eq_exp, mem_setOf_eq,
+              eq_sub_iff_add_eq, add_eq_left, indicator_apply_eq_zero, Classical.not_imp,
+              and_iff_left_iff_imp]
+            tauto
+
+        exact Integrable.congr hf_exp_ν_integrable h_integrand_ae_eq
+      · have h_integrable_on_rn_deriv_zero_set : IntegrableOn (exp ∘ f_fixed) rn_deriv_zero_set
+            ν := by
+          apply Integrable.of_integral_ne_zero
+          simp only [Function.comp_apply, h_integral_f_fixed_on_rn_deriv_zero_set, ne_eq,
+            mul_eq_zero, exp_ne_zero, or_false]
+          rw [measureReal_eq_zero_iff]
+          exact h_rn_deriv_zero_set_ν_measure
+
+        have h_integrable_on_rn_deriv_zero_set_compl : IntegrableOn (exp ∘ f_fixed)
+            rn_deriv_zero_setᶜ ν := by
+          apply Integrable.of_integral_ne_zero
+          simp only [Function.comp_apply, h_integral_f_fixed_on_rn_deriv_zero_set_compl, ne_eq,
+            one_ne_zero, not_false_eq_true]
+
+        -- being integrable on each part should be enough
+        sorry
+
+      -- constructor
+      -- · apply Measurable.aestronglyMeasurable
+      --   exact h_f_fixed_measurable.exp
+      -- · unfold HasFiniteIntegral
+      --   calc
+      --     ∫⁻ x, ‖exp (f_fixed x)‖ₑ ∂ν
+      --       = ∫⁻ x in rn_deriv_zero_set, ‖exp (f_fixed x)‖ₑ ∂ν +
+      --         ∫⁻ x in rn_deriv_zero_setᶜ, ‖exp (f_fixed x)‖ₑ ∂ν :=
+      --           (lintegral_add_compl _ h_rn_deriv_zero_set_measurable).symm
+      --     _ = ∫ x in rn_deriv_zero_set, exp (f_fixed x) ∂ν +
+      --         ∫ x in rn_deriv_zero_setᶜ, exp (f_fixed x) ∂ν := by
+      --           rw [integral_eq_lintegral_pos_part_sub_lintegral_neg_part]
+      --     _ < ⊤ := by sorry
+
 
     use ⟨f_fixed, ⟨h_f_fixed_measurable, h_f_fixed_exp_ν_integrable⟩⟩
 
-    have h_kl_div_eq_int_llr : (klDiv μ ν : EReal) = ↑(∫ x, llr μ ν x ∂μ) := by
-      calc
-        (klDiv μ ν : EReal)
-          = ↑(ENNReal.ofReal (∫ x, llr μ ν x ∂μ)) := by
-            rw [klDiv_of_ac_of_integrable hμν hfμ_integrable]
-            simp only [measureReal_univ_eq_one, add_sub_cancel_right]
-        _ = ↑(∫ x, llr μ ν x ∂μ) := by
-            simp only [EReal.coe_ennreal_ofReal, EReal.coe_eq_coe_iff, sup_eq_left]
-            convert integral_llr_add_sub_measure_univ_nonneg hμν hfμ_integrable using 1
-            simp only [measureReal_univ_eq_one, add_sub_cancel_right]
-
-    have : ∫ x, exp (f_fixed x) ∂ν = 1 + exp (-c) * ν.real rn_deriv_zero_set := by
+    have h_integral_exp_f_fixed_ν : ∫ x, exp (f_fixed x) ∂ν =
+        1 + ν.real rn_deriv_zero_set * exp (-c) := by
       simp_rw [← Function.comp_apply (f := exp) (g := f_fixed),
-        ← integral_add_compl h_rn_deriv_zero_set_measurable h_f_fixed_exp_ν_integrable]
+        ← integral_add_compl h_rn_deriv_zero_set_measurable h_f_fixed_exp_ν_integrable,
+        Function.comp_apply]
 
-      -- have : ∫ x in rn_deriv_zero_set, exp (f_fixed x) ∂μ = ℝ
-
-      -- On rn_deriv_zero_set, f_fixed x = -c
-      have h1 : ∫ x in rn_deriv_zero_set, exp (f_fixed x) ∂ν = exp (-c) * ν.real rn_deriv_zero_set := by
-        sorry
-
-      sorry
-
+      rw [h_integral_f_fixed_on_rn_deriv_zero_set, h_integral_f_fixed_on_rn_deriv_zero_set_compl]
+      linarith
 
     have h_donsker_varadhan_functional_eq : donskerVaradhanFunctional μ ν
         ⟨f_fixed, ⟨h_f_fixed_measurable, h_f_fixed_exp_ν_integrable⟩⟩ =
-        klDiv μ ν - exp (-c) * ν (rn_deriv_zero_set) := by
+        klDiv μ ν - log (1 + ν.real rn_deriv_zero_set * exp (-c)) := by
       unfold donskerVaradhanFunctional
-      rw [integralEReal_is_bochner_if_integrable μ f_fixed h_f_fixed_μ_integrable]
-      rw [h_kl_div_eq_int_llr]
-      rw [h_f_fixed_μ_integral]
+      rw [integralEReal_is_bochner_if_integrable μ f_fixed h_f_fixed_μ_integrable,
+        ← h_klReal, h_f_fixed_μ_integral, h_integral_exp_f_fixed_ν]
 
+    rw [h_donsker_varadhan_functional_eq]
 
-      sorry
+    by_cases h_ν_rn_deriv_zero_set : ν.real rn_deriv_zero_set = 0
+    · rw [h_ν_rn_deriv_zero_set]
+      simp only [zero_mul, add_zero, log_one, EReal.coe_zero, sub_zero, gt_iff_lt]
+      exact h_w_lt_kl
+    · unfold c
+      have : 0 < ν.real rn_deriv_zero_set :=
+        lt_of_le_of_ne' (toReal_nonneg (a := ν rn_deriv_zero_set)) h_ν_rn_deriv_zero_set
+      rw [neg_sub, exp_sub, exp_log hε, exp_log this, mul_div_cancel₀ ε h_ν_rn_deriv_zero_set]
 
-    sorry
+      induction hw : w using EReal.rec with
+      | bot =>
+        rw [← h_klReal, ← EReal.coe_sub]
+        exact EReal.bot_lt_coe _
+      | top =>
+        exfalso
+        rw [hw] at h_w_lt_kl
+        exact not_top_lt h_w_lt_kl
+      | coe wReal' =>
+        have h_wReal' : wReal = wReal' := by
+          unfold wReal
+          rw [hw]
+          exact EReal.toReal_coe _
 
-
-
-    -- refine le_iSup_of_le f_ν_exp_integrable ?_
-    -- apply le_of_eq
-    -- unfold donskerVaradhanFunctional
-
-    -- rw [integralEReal_llr_eq_ite hμν, if_pos hfμ_integrable]
-
-    -- have h_int_exp_f_eq_1 : ∫ x, exp (f x) ∂ν = 1 := by
-    --   unfold f
-    --   have h_exp_llr_eq_rn_deriv := exp_llr μ ν
-    --   rw [integral_congr_ae (μ := ν) h_exp_llr_eq_rn_deriv]
-    --   sorry
-    --   -- haha its false because of log 0 = 0
-
-    -- calc
-    --   (klDiv μ ν : EReal)
-    --     = ↑(ENNReal.ofReal (∫ x, llr μ ν x ∂μ)) := by
-    --       rw [klDiv_of_ac_of_integrable hμν hfμ_integrable]
-    --       simp only [measureReal_univ_eq_one, add_sub_cancel_right]
-    --   _ = ↑(∫ x, llr μ ν x ∂μ) := by
-    --       simp only [EReal.coe_ennreal_ofReal, EReal.coe_eq_coe_iff, sup_eq_left]
-    --       convert integral_llr_add_sub_measure_univ_nonneg hμν hfμ_integrable using 1
-    --       simp only [measureReal_univ_eq_one, add_sub_cancel_right]
-    --   _ = ↑(∫ x, llr μ ν x ∂μ) - ↑(log (∫ x, exp (f x) ∂ν)) := by
-    --     sorry
-
-    -- apply iSup_eq_top
-
-  --   -- by_cases μ ≪ ν ∧ Integrable f μ
-  --   -- case pos hkl_finite =>
-  --   --   rw [if_pos hkl_finite.2]
-  --   --   sorry
-  --     -- have h_rhs : ENNReal.ofReal (∫ x, f x ∂μ - log (∫ x, exp (f x) ∂ν))
-  --       -- = klDiv μ ν := by
-  --       -- calc
-  --       --   ENNReal.ofReal (∫ x, f x ∂μ - log (∫ x, exp (f x) ∂ν))
-  --       --     = ENNReal.ofReal (∫ x, llr μ ν x ∂μ - log (∫ x, (μ.rnDeriv ν x).toReal ∂ν)) := by
-  --       --       simp only [f, llr, exp_log]
-
-  --       --   _ =
-
-  --   -- case neg hkl_infinite =>
-  --   --   push_neg at hkl_infinite
-  --   --   by_cases habsCont : μ ≪ ν
-  --   --   · have hf_μ_nonintegrable := hkl_infinite habsCont
-
-  --   --   .
-
-  -- -- Prove that for any f, the expression inside the supremum ≤ the KL divergence.
-  -- -- · apply iSup_le
-  -- --   intro f
-  -- --   let g := (f : α → ℝ)
-
-  -- --   by_cases habs_cont : μ ≪ ν
-  -- --   -- We can assume μ ≪ ν, since otherwise the inequality is trivially true.
-  -- --   · let ν_tilted := ν.tilted g
-
-  --     -- let dμν := rnDeriv μ ν
-  --     -- let dv_tiltedν := rnDeriv ν ν_tilted
-
-  --     -- have hν_tilted_absCont := tilted_absolutelyContinuous ν g
-
-  --     -- have hg_measurable : Measurable g := f.2.1
-  --     -- have hg_aemeasurable : AEMeasurable g ν := hg_measurable.aemeasurable (μ := ν)
-
-
-  --     -- have h : ENNReal.ofReal ∘ exp ∘ g = ν_tilted.rnDeriv ν := by
-  --     --   rw [← rnDeriv_tilted_left ν hg_aemeasurable]
-
-
-
-  --     -- calc
-  --     --  ∫ x, (f : α → ℝ) x ∂μ - log (∫ x, exp ((f : α → ℝ) x) ∂ν)
-
-  --   --   sorry
-
-  --   -- · rw [klDiv_of_not_ac habs_cont]
-  --   --   exact le_top
-
-
--- def absolutelyContinuousFiniteMeasures (μ : Measure α) : Set (Measure α) :=
---   {ν | IsFiniteMeasure ν ∧ ν ≪ μ}
-
--- /-- **Gibbs variational formula**:
--- If h is a real-valued integrable random variable wrt
--- a finite measure μ, then we have
--- `log ∫ exp h ∂μ = sup_{ν ≪ μ} [∫ h ∂ν - D_KL (ν || μ)]`
--- -/
--- theorem gibbs
---   [IsFiniteMeasure μ] (h : α → ℝ) (hf_int : Integrable h μ) :
---     log (∫ x, exp (h x) ∂μ) =
---       ⨆ (ν : absolutelyContinuousFiniteMeasures μ),
---       ∫ x, h x ∂ν - (klDiv ν μ).toReal := by
---   sorry
+        rw [← h_klReal, ← EReal.coe_sub, ← h_wReal']
+        apply EReal.coe_strictMono
+        calc
+          wReal < wReal + ε := by exact lt_add_of_pos_right wReal hε
+              _ = klReal - ε := by ring
+              _ ≤ klReal - log (1 + ε) := by
+                    linarith [log_le_sub_one_of_pos (x := 1 + ε) (by linarith [hε])]
 
 end InformationTheory
