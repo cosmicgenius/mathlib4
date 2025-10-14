@@ -469,28 +469,6 @@ lemma donsker_varadhan_modified_llr_approaches_equality
       _ = klReal - ε := by ring
       _ ≤ klReal - log (1 + ε) := by
             linarith [log_le_sub_one_of_pos (x := 1 + ε) (by linarith [hε])]
-    -- induction hw : w using EReal.rec with
-    -- | bot =>
-    --   rw [← h_klReal, ← EReal.coe_sub]
-    --   exact EReal.bot_lt_coe _
-    -- | top =>
-    --   exfalso
-    --   rw [hw] at h_w_lt_kl
-    --   exact not_top_lt h_w_lt_kl
-    -- | coe wReal' =>
-    --   have h_wReal' : wReal = wReal' := by
-    --     unfold wReal
-    --     rw [hw]
-    --     exact EReal.toReal_coe _
-
-    --   rw [← h_klReal, ← EReal.coe_sub, ← h_wReal']
-    --   apply EReal.coe_strictMono
-    --   calc
-    --     wReal < wReal + ε := by exact lt_add_of_pos_right wReal hε
-    --         _ = klReal - ε := by ring
-    --         _ ≤ klReal - log (1 + ε) := by
-    --               linarith [log_le_sub_one_of_pos (x := 1 + ε) (by linarith [hε])]
-
 
 /-- **Donsker-Varadhan Variational Formula**
 Let μ, ν be finite measures on α. Then the KL
