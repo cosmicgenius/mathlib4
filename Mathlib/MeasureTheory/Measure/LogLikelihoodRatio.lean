@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Rémy Degenne
 -/
 import Mathlib.MeasureTheory.Measure.Tilted
+import Mathlib.MeasureTheory.Measure.Decomposition.IntegralRNDeriv
 
 /-!
 # Log-likelihood Ratio
@@ -117,6 +118,25 @@ lemma llr_smul_right [IsFiniteMeasure μ] [Measure.HaveLebesgueDecomposition μ 
     simp [hx_pos.ne', hx_ne_top.ne]
   rw [ENNReal.toReal_inv, log_inv]
   ring
+
+lemma integrable_exp_llr_of_finite (μ ν : Measure α) [IsFiniteMeasure μ] [IsFiniteMeasure ν] :
+    Integrable (fun x ↦ exp (llr μ ν x)) ν := by
+  refine Integrable.congr ?_ (exp_llr μ ν).symm
+  -- Dumb approach. Just bound by 1 + dμ / dν.
+  refine Integrable.mono (g := fun x ↦ 1 + (μ.rnDeriv ν x).toReal) ?_ ?_ ?_
+  · exact Integrable.add (integrable_const 1) (Measure.integrable_toReal_rnDeriv)
+  · apply Measurable.aestronglyMeasurable
+    have := Measure.measurable_rnDeriv μ ν
+    exact Measurable.ite (measurableSet_eq_fun' this measurable_const) measurable_const
+      this.ennreal_toReal
+  · filter_upwards
+    intro x
+    by_cases h : μ.rnDeriv ν x = 0
+    · simp only [h, ↓reduceIte, one_mem, CStarRing.norm_of_mem_unitary, ENNReal.toReal_zero,
+      add_zero, le_refl]
+    · simp only [h, ↓reduceIte, norm_eq_abs]
+      have : 0 ≤ (μ.rnDeriv ν x).toReal := ENNReal.toReal_nonneg
+      linarith [abs_of_nonneg this, abs_of_nonneg (by linarith : 0 ≤ 1 + (μ.rnDeriv ν x).toReal)]
 
 lemma integrable_rnDeriv_mul_log_iff [SigmaFinite μ] [μ.HaveLebesgueDecomposition ν] (hμν : μ ≪ ν) :
     Integrable (fun a ↦ (μ.rnDeriv ν a).toReal * log (μ.rnDeriv ν a).toReal) ν
