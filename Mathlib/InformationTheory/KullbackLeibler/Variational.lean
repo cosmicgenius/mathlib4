@@ -1,7 +1,5 @@
 /-
-Copyright (c) 2025 Rémy Degenne. All rights reserved.
-Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Rémy Degenne, Lorenzo Luccioli
+todo
 -/
 import Mathlib.InformationTheory.KullbackLeibler.Basic
 import Mathlib.InformationTheory.KullbackLeibler.KLFun
@@ -18,15 +16,7 @@ namespace InformationTheory
 
 variable {α : Type*} {mα : MeasurableSpace α} {μ ν : Measure α}
 
--- Stupid coe lemma that I use multiple times but I thought was nontrivial
-lemma finite_ennreal_coe_real_coe_ereal_eq_coe_ereal
-  (x : ENNReal) (hx : x < ∞) : (x.toReal : EReal) = (x : EReal) := by
-  calc
-    (x.toReal : EReal)
-      = (ENNReal.ofReal x.toReal : EReal) := by
-          simp only [EReal.coe_ennreal_ofReal, toReal_nonneg, sup_of_le_left]
-    _ = (x : EReal)                       := by
-          rw [ENNReal.ofReal_toReal_eq_iff.mpr (lt_top_iff_ne_top.mp hx)]
+-- TODO: Move all this integralEReal stuff somewhere else.
 
 noncomputable def lintegralPosPart (μ : Measure α) (f : α → ℝ) : ℝ≥0∞ :=
   ∫⁻ x, ENNReal.ofReal (f x) ∂μ
@@ -49,13 +39,16 @@ lemma integralEReal_is_bochner_if_integrable (μ : Measure α) (f : α → ℝ) 
   unfold integralEReal
   simp only [EReal.coe_sub]
 
-  have hpos_finite : ∫⁻ (x : α), ENNReal.ofReal (f x) ∂μ < ∞ := by
+  -- The positive and negative parts have integrals bounded by the L1 norm.
+  have hpos_finite : ∫⁻ (x : α), ENNReal.ofReal (f x) ∂μ ≠ ∞ := by
+    rw [← lt_top_iff_ne_top]
     apply lt_of_le_of_lt _ hf.hasFiniteIntegral
     apply lintegral_mono
     intro x
     exact ofReal_le_enorm (f x)
 
-  have hneg_finite : ∫⁻ (x : α), ENNReal.ofReal (-f x) ∂μ < ∞ := by
+  have hneg_finite : ∫⁻ (x : α), ENNReal.ofReal (-f x) ∂μ ≠ ∞ := by
+    rw [← lt_top_iff_ne_top]
     apply lt_of_le_of_lt _ hf.hasFiniteIntegral
     apply lintegral_mono
     intro x
@@ -63,8 +56,7 @@ lemma integralEReal_is_bochner_if_integrable (μ : Measure α) (f : α → ℝ) 
     rw [← enorm_neg]
     exact ofReal_le_enorm (-f x)
 
-  rw [finite_ennreal_coe_real_coe_ereal_eq_coe_ereal _ hpos_finite,
-      finite_ennreal_coe_real_coe_ereal_eq_coe_ereal _ hneg_finite]
+  rw [EReal.coe_ennreal_toReal hpos_finite, EReal.coe_ennreal_toReal hneg_finite]
   rfl
 
 /--
@@ -184,7 +176,7 @@ lemma integralEReal_llr_eq_ite [IsFiniteMeasure μ] [IsFiniteMeasure ν] (h_ac :
     rw [EReal.sub_coe_ennreal_eq_top_iff]
     exact ⟨h_integrable, lt_top_iff_ne_top.mp lintegral_neg_part_llr_finite⟩
 
--- Another dumb lemma
+-- Easy lemma that is used in some of the constructions.
 lemma const_indicator_integrable_if_support_finite (S : Set α) (hS_measurable : MeasurableSet S)
   (hS_finite : μ S < ∞) (c : ℝ) : Integrable (S.indicator fun _ => c) μ := by
   rw [integrable_indicator_iff hS_measurable, integrableOn_const_iff]
@@ -255,7 +247,7 @@ lemma donsker_varadhan_not_absCont_infinite_sup [IsProbabilityMeasure μ] [IsPro
   unfold Measure.real
   field_simp [(ne_of_gt hc : (μ t).toReal ≠ 0)]
 
-  rw [finite_ennreal_coe_real_coe_ereal_eq_coe_ereal _ hb]
+  rw [EReal.coe_ennreal_toReal (lt_top_iff_ne_top.mp hb)]
 
 /--
 Under the conditions μ ≪ ν and Integrable (llr μ ν) μ, the equality klDiv μ ν =
